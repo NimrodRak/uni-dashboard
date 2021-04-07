@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Collections.ObjectModel;
-using System.Net.Http;
-using System.Data;
 using Newtonsoft.Json.Linq;
 using System.Windows;
 using System.Diagnostics;
 using System.ComponentModel;
 using System.IO;
+using System.Windows.Controls;
 
 namespace UniDashboard
 {
@@ -18,32 +14,28 @@ namespace UniDashboard
     /// </summary>
     public partial class MainWindow : Window
     {
-        private static readonly HttpClient client = new();
         private static readonly BackgroundWorker worker = new();
-        private readonly JObject configurationJson;
+        private readonly string autoCompilerPath;
+
         public MainWindow()
         {
             InitializeComponent();
             worker.DoWork += worker_DoWork;
             worker.RunWorkerCompleted += worker_RunWorkerCompleted;
-            string jsonPath = Environment.GetEnvironmentVariable("uni") + @"\dashboard.json";
-            try
+            autoCompilerPath = (string)((App)Application.Current).configurationJson["moodle"]["autoCompilerPath"];
+            if (!File.Exists(autoCompilerPath))
             {
-                configurationJson = JObject.Parse(File.ReadAllText(jsonPath));
-            }
-            catch (Exception)
-            {
-                Application.Current.Shutdown();
+                compilationButton.IsEnabled = false;
+                compilationButton.ToolTip += " Disabled because AutoCompiler.bat was not found";
             }
         }
-
         private void worker_DoWork(object sender, DoWorkEventArgs e)
         {
             Process process = new()
             {
                 StartInfo =
                 {
-                    FileName = (string)configurationJson["moodle"]["autoCompilerPath"],
+                    FileName = autoCompilerPath,
                     RedirectStandardInput = true,
                     CreateNoWindow = true
                 }
@@ -55,77 +47,51 @@ namespace UniDashboard
         }
         private void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            compilationButton.Visibility = Visibility.Visible;
-            compilationTextBlock.Visibility = Visibility.Hidden;
+            if (e.Error != null)
+            {
+                ((App)Application.Current).MessageAndExit(e.Error.Message);
+            }
+            else if (e.Cancelled)
+            {
+                ((App)Application.Current).MessageAndExit("Operation cancelled.");
+            }
+            else
+            {
+                compilationButton.Content = "Compile Files";
+                compilationButton.IsEnabled = true;
+            }
         }
         private void CompilationButton_Click(object sender, RoutedEventArgs e)
         {
-            compilationButton.Visibility = Visibility.Hidden;
-            compilationTextBlock.Visibility = Visibility.Visible;
+            compilationButton.Content = "Compiling";
+            compilationButton.IsEnabled = false;
             worker.RunWorkerAsync();
         }
         private void MoodleButton_Click(object sender, RoutedEventArgs e)
         {
+            JObject configurationJson = ((App)Application.Current).configurationJson;
             Process.Start(new ProcessStartInfo((string)configurationJson["moodle"]["site"] + (string)configurationJson["moodle"]["dashboardPath"]) {
                 UseShellExecute = true
             });
         }
-        private async void Window_ContentRendered(object sender, EventArgs e)
+        private void Window_ContentRendered(object sender, EventArgs e)
         {
-            loadingTextBlock.Visibility = Visibility.Visible;
-            
-            IEnumerable<Assignment> assignments = await GetAssignmentsAsync();
-            if (assignments != null)
+            ObservableCollection<Assignment> assigns = new(((App)Application.Current).items);
+            if (assigns.Count == 0)
             {
-                loadingTextBlock.Visibility = Visibility.Hidden;
-                compilationButton.Visibility = Visibility.Visible;
-                moodleButton.Visibility = Visibility.Visible;
-                Master.ItemsSource = new ObservableCollection<Assignment>(assignments);
+                Master.Visibility = Visibility.Collapsed;
+                clearTODOTextBlock.Visibility = Visibility.Visible;
             }
-            else
-            {
-                Application.Current.Shutdown();
-            }
-
+            Master.ItemsSource = assigns;
         }
-        private async Task<IEnumerable<Assignment>> GetAssignmentsAsync()
+        private void Master_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            string tokenUrl = (string)configurationJson["moodle"]["site"] + (string)configurationJson["moodle"]["tokenEndpoint"]
-                           + $"?username={configurationJson["moodle"]["username"]}"
-                           + $"&password={configurationJson["moodle"]["password"]}"
-                            + "&service=moodle_mobile_app";
-            try
-            {
-                string tokenResponse = await client.GetStringAsync(tokenUrl);
-                JObject tokenJson = JObject.Parse(tokenResponse);
-                string token = (string)tokenJson["token"];
-
-                string assignUrl = (string)configurationJson["moodle"]["site"] + (string)configurationJson["moodle"]["wsEndpoint"]
-                                 + $"?wstoken={token}"
-                                  + "&wsfunction=mod_assign_get_assignments"
-                                  + "&moodlewsrestformat=json";
-                string assignResponse = await client.GetStringAsync(assignUrl);
-                JObject assignJson = JObject.Parse(assignResponse);
-
-                long currentUnix = DateTimeOffset.Now.ToUnixTimeSeconds();
-                var assignQuery =
-                    from course in assignJson["courses"]
-                    from assign in course["assignments"]
-                    where currentUnix < (long)assign["duedate"]
-                    orderby (long)assign["duedate"] ascending
-                    select new Assignment((long)assign["duedate"])
-                    {
-                        name = (string)assign["name"],
-                        course = ((string)assign["course"]).Substring(0, 5),
-                        id = (int)assign["id"]
-                    };
-                return assignQuery;
-
-            }
-            catch (Exception)
-            {
-                return null;
-            }
+            ListBox lb = sender as ListBox;
+            JObject configurationJson = ((App)Application.Current).configurationJson;
+            Process.Start(new ProcessStartInfo((string)configurationJson["moodle"]["site"] + "mod/assign/view.php?id=" + ((Assignment)e.AddedItems[0]).cmid.ToString()) {
+                UseShellExecute = true
+            });
+            lb.UnselectAll();
         }
     }
 }

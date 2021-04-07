@@ -15,6 +15,7 @@ namespace UniDashboard
         public string date { get; set; }
         public int remaining { get; }
         public int id { get; set; }
+        public int cmid { get; set; }
         public Assignment(long seconds)
         {
             assignmentDate = UnixSecondsToDate(seconds);
@@ -26,6 +27,7 @@ namespace UniDashboard
             DateTime dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Local);
             return dtDateTime.AddSeconds(seconds).ToLocalTime();
         }
+
     }
 
 }

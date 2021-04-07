@@ -1,0 +1,11 @@
+{
+    "moodle" : {
+        "site": "https://moodle2.cs.huji.ac.il/nu20/",
+        "username" : "<moodleUsername>",
+        "password" : "<moodlePassword>",
+        "dashboardPath" : "my/",
+        "tokenEndpoint" : "login/token.php",
+        "wsEndpoint" : "webservice/rest/server.php",
+        "autoCompilerPath" : "C:\\dev\\auto-compiler\\AutoCompiler.bat"
+    }
+}

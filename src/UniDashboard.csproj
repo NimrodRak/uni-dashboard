@@ -6,7 +6,17 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>DashboardLogo.ico</ApplicationIcon>
     <NoWin32Manifest>true</NoWin32Manifest>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 	<RuntimeIdentifiers>win10-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>..\bin\Debug</OutputPath>
+    <WarningLevel>3</WarningLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\bin\Release</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>

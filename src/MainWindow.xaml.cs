@@ -86,12 +86,13 @@ namespace UniDashboard
         }
         private void Master_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            ListBox lb = sender as ListBox;
             JObject configurationJson = ((App)Application.Current).configurationJson;
-            Process.Start(new ProcessStartInfo((string)configurationJson["moodle"]["site"] + "mod/assign/view.php?id=" + ((Assignment)e.AddedItems[0]).cmid.ToString()) {
-                UseShellExecute = true
-            });
-            lb.UnselectAll();
+            if (e.AddedItems.Count == 1)
+            {
+                Process.Start(new ProcessStartInfo((string)configurationJson["moodle"]["site"] + "mod/assign/view.php?id=" + ((Assignment)e.AddedItems[0]).cmid.ToString()) {
+                    UseShellExecute = true
+                });
+            }
         }
     }
 }
